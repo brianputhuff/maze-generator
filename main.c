@@ -18,11 +18,16 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 
 
+#define FLOOR 32
+#define WALL  63
 
-enum {
+
+enum
+{
 	UP    = 0,
 	RIGHT = 1,
 	DOWN  = 2,
@@ -30,206 +35,244 @@ enum {
 };
 
 
-
-struct Maze {
-	int *cells;
-	int w;
-	int h;
+struct maze
+{
+	uint8_t *cells;
+	uint8_t w;
+	uint8_t h;
 };
 
 
-
-struct Maze *createMaze ( int width, int height );
-void destroyMaze ( struct Maze *m );
-void drill ( struct Maze *m, int r, int c );
-void printMaze ( struct Maze *m );
+struct maze *
+create_maze(uint8_t w, uint8_t h);
 
 
+void
+destroy_maze(struct maze *m);
 
-int main ( int argc, char **argv ) {
 
-	int w, h;
-	int r, c;
-	struct Maze *maze;
+void
+build_selection(int8_t *s);
 
+
+uint8_t
+get_cell(struct maze *m, uint16_t x, uint16_t y);
+
+
+void
+set_cell(struct maze *m, uint8_t d, uint16_t x, uint16_t y);
+
+
+void
+build_maze(struct maze *m, int16_t r, int16_t c);
+
+
+void
+print_maze(struct maze *m);
+
+
+int main(int argc, char **argv)
+{
+	uint8_t w = 0;
+	uint8_t h = 0;
+	uint8_t r = 0;
+	uint8_t c = 0;
+	struct maze *m = NULL;
 
 
 	/* random seed */
-	srand ( time ( NULL ) ) ;
+	srand(time(NULL));
 	
 	/* parse command line arguments */
 	if (argc > 2) {
-		w = ( int ) ( strtod ( argv[1], NULL ) );
-		h = ( int ) ( strtod ( argv[2], NULL ) );
-	}
-	else if (argc > 1) {
-		w = ( int ) ( strtod ( argv[1], NULL ) );
-		h = ( int ) ( strtod ( argv[1], NULL ) );
-	}
-	else {
+		w = (uint8_t)strtod(argv[1], NULL);
+		h = (uint8_t)strtod(argv[2], NULL);
+	} else if (argc > 1) {
+		w = (uint8_t)strtod(argv[1], NULL);
+		h = (uint8_t)strtod(argv[1], NULL);
+	} else {
 		w = 9;
 		h = 9;
 	}
 
 	/* create maze structure */
-	maze = createMaze ( w, h );
+	m = create_maze(w, h);
 
-	if ( maze != NULL ) {
-		/* choose a start row */
-		do {
-			r = rand ( ) % maze->h;
-		} while ( r % 2 != 1 );
-		
-		/* chose a start column */
-		do {
-			c = rand ( ) % maze->w;
-		} while ( c % 2 != 1 );
-	
-		/* build maze */
-		drill ( maze, r, c );
-
-		/* display maze */
-		printMaze ( maze );
-
-		/* destroy maze structure */
-		destroyMaze ( maze );
+	if (m == NULL) {
+		return 1;
 	}
+	
+	/* choose an odd start row */
+	do {
+		r = rand() % m->h;
+	} while ((r % 2) != 1);
+		
+	/* chose an odd start column */
+	do {
+		c = rand() % m->w;
+	} while ((c % 2) != 1);
+	
+	build_maze(m, r, c);
+	print_maze(m);
+	destroy_maze(m);
 
 	return 0;
 }
 
 
-
-struct Maze *createMaze ( int width, int height ) {
-
-	int i;
-	struct Maze *m = NULL;
-	int *cd = NULL;
-
-
+struct maze *
+create_maze(uint8_t w, uint8_t h)
+{
+	struct maze *m = NULL;
+	uint8_t *d = NULL;
+	uint16_t a = 0;
+	uint16_t i = 0;
 
 	/* correct bad dimensional input */
-	if ( width < 3 ) {
-		width = 3;
-	}
-	if ( height < 3 ) {
-		height = 3;
-	}
-	if ( width % 2 == 0 ) {
-		width -= 1;
-	}
-	if ( height % 2 == 0 ) {
-		height -= 1;
+	if (w < 3)
+		w = 3;
+
+	if (h < 3)
+		h = 3;
+
+	if ((w % 2) == 0 )
+		w -= 1;
+
+	if ((h % 2) == 0 )
+		h -= 1;
+
+	a = (uint16_t)w * (uint16_t)h;
+
+	d = malloc(sizeof(*d) * a);
+	if (d == NULL) {
+		printf("The cell data could not be allocated.\n");
+		return NULL;
 	}
 
-	/* allocate memory for cell data */
-	cd = malloc ( sizeof ( int ) * ( width * height ) );
-	if ( cd != NULL ) {
-		/* set all cell data to 1 (wall) */
-		for ( i = 0; i < ( width * height ); i++ ) {
-			cd[i] = 1;
-		}
+	for (i = 0; i < a; i += 1)
+		d[i] = WALL;
 
-		/* allocate memory for maze structure */
-		m = malloc ( sizeof ( struct Maze ) );
-		if ( m != NULL ) {
-			m->w = width;
-			m->h = height;
-			m->cells = cd;
+	m = malloc(sizeof(*m));
+	if (m == NULL) {
+		printf("The maze structure could not be allocated.\n");
+		free(d);
+		return NULL;
+	}
 
-		}
-		else {
-			free (cd );
-			printf ( "Maze structure could not be created.\n" );
-		}
-	}
-	else {
-		printf ( "Cell data buffer could not be created.\n" );
-	}
+	m->w = w;
+	m->h = h;
+	m->cells = d;
 
 	return m;
 }
 
 
+void
+destroy_maze(struct maze *m)
+{
+	if (m == NULL)
+		return;
 
-void destroyMaze ( struct Maze *m ) {
-
-	if ( m != NULL ) {
-		if ( m->cells != NULL ) {
-			free ( m->cells );
-		}
-		free ( m );
-	}
+	if (m->cells != NULL)
+		free(m->cells);
+	
+	free(m);
 }
 
 
+void
+build_selection(int8_t *s)
+{
+	uint8_t d = 0;
+	uint8_t i = 0;
+	uint8_t f = 0;
+	uint8_t p = 0;
 
-void drill ( struct Maze *m, int r, int c ) {
-	
-	int i, p;
-	int direction;
-	int bull;
-	int selection[4] = { -1, -1, -1, -1 };
 
-
-
-	/* build a randomized selection set */
-	p = 0;
 	do {
-		bull = 0;
-		direction = rand ( ) % 4;
-		for (i = 0; i < p + 1; i++) {
-			if ( selection[i] == direction ) {
-				bull = 1;
-			}
+		f = 0;
+		d = (uint8_t)rand() % 4;
+		for (i = 0; i < (p + 1); i += 1) {
+			if (s[i] == d)
+				f = 1;
 		}
-		if ( bull == 0 ) {
-			selection[p] = direction;
-			p++;
+		if (f == 0) {
+			s[p] = d;
+			p += 1;
 		}
-	}
-	while ( p < 4 );
+	} while (p < 4);
+}
 
 
+uint8_t
+get_cell(struct maze *m, uint16_t x, uint16_t y)
+{
+	if (m == NULL)
+		return 0;
 
-	/* build a path workshop */
-	m->cells[r * m->w + c] = 0;
+	if ((x >= m->w) || (y >= m->h))
+		return 0;
 	
-	for ( i = 0; i < 4; i++ ) { 
-		direction = selection[i];
-		switch ( direction ) {
+	return m->cells[((y * m->w) + x)];
+}
+
+
+void
+set_cell(struct maze *m, uint8_t d, uint16_t x, uint16_t y)
+{
+	if (m == NULL)
+		return;
+
+	if ((d != FLOOR) && (d != WALL))
+		return;
+
+	if ((x >= m->w) || (y >= m->h))
+		return;
+	
+	m->cells[((y * m->w) + x)] = d;
+}
+
+
+void
+build_maze(struct maze *m, int16_t r, int16_t c)
+{	
+	uint8_t d = 0;
+	int8_t s[4] = { -1, -1, -1, -1 };
+
+
+	build_selection(s);
+	set_cell(m, FLOOR, c, r);
+	for (d = 0; d < 4; d += 1) { 
+		switch (s[d]) {
 		case UP:
-			if ( r - 2 > 0 ) {
-				if ( m->cells[( r - 2 ) * m->w + c] == 1) {
-					m->cells[( r - 1 ) * m->w + c] = 0;
-					drill ( m, r - 2, c );
+			if ((r - 2) > 0) {
+				if (get_cell(m, c, (r - 2)) == WALL) {
+					set_cell(m, FLOOR, c, (r - 1));
+					build_maze(m, (r - 2), c);
 				}
 			}
 			break;
-
 		case RIGHT:
-			if ( c + 2 < m->w - 1 ) {
-				if ( m->cells[r * m->w + ( c + 2 )] == 1) {
-					m->cells[r * m->w + ( c + 1 )] = 0;
-					drill ( m , r, c + 2 );
+			if ((c + 2) < (m->w - 1)) {
+				if (get_cell(m, (c + 2), r) == WALL) {
+					set_cell(m, FLOOR, (c + 1), r);
+					build_maze(m, r, (c + 2));
 				}
 			}
 			break;
-
 		case DOWN:
-			if ( r + 2 < m->h - 1 ) {
-				if ( m->cells[( r + 2 ) * m->w + c] == 1) {
-					m->cells[( r + 1 ) * m->w + c] = 0;
-					drill ( m, r + 2, c ); 
+			if ((r + 2) < (m->h - 1)) {
+				if (get_cell(m, c, (r + 2)) == WALL) {
+					set_cell(m, FLOOR, c, (r + 1));
+					build_maze( m, (r + 2), c );
 				}
 			}
 			break;
-
 		case LEFT:
-			if ( c - 2 > 0 ) {
-				if ( m->cells[r * m->w + ( c - 2 )] == 1) {
-					m->cells[r * m->w + ( c - 1 )] = 0;
-					drill ( m, r, c - 2 );
+			if ((c - 2) > 0) {
+				if (get_cell(m, (c - 2), r) == WALL) {
+					set_cell(m, FLOOR, (c - 1), r);
+					build_maze(m, r, (c - 2));
 				}
 			}
 			break;
@@ -241,24 +284,21 @@ void drill ( struct Maze *m, int r, int c ) {
 }
 
 
+void
+print_maze(struct maze *m)
+{
+	uint8_t r;
+	uint8_t c;
+	uint8_t d;
 
-void printMaze ( struct Maze *m ) {
-	
-	int r, c;
 
-
-
-	printf ( "\n\n\n" );
-	for ( r = 0; r < m->h; r++ ) {
-		for ( c = 0; c < m->w; c++ ) {
-			if ( m->cells[r * m->w + c] == 0 ) {
-				printf ( " " );
-			}
-			else {
-				printf ( "#" );
-			}
+	printf("\n\n\n");
+	for (r = 0; r < m->h; r += 1) {
+		for (c = 0; c < m->w; c += 1) {
+			d = (unsigned char)get_cell(m, c, r);
+			printf("%c%c", d, d);
 		}
-		printf ( "\n" );
+		printf("\n");
 	}
 	printf ( "\n\n\n" );
 }
