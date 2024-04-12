@@ -69,7 +69,7 @@ Example: Generate a maze with a width of 32 cells and a height of 18 cells.
 
 ```
 
-You can set a square maze (horizontal width and vertical width the same) using a single command line argument.
+You can set a square maze (horizontal width and vertical height the same) using a single command line argument.
 Example: Generate a maze with a width of 13 cells and a height of 13 cells.
 
 ```
